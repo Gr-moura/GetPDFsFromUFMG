@@ -94,6 +94,11 @@ Executa a navegação recursiva pelos links da página, baixando arquivos e expl
 Função principal que inicia o navegador, acessa a página principal e inicia a extração recursiva dos arquivos. Exibe também a lista de links que falharam ao serem acessados.
 
 ## Execução
+Modifique a variável global PERIODO para o periodo em que queira baixar os arquivos:
+
+```py
+PERIODO = "20241"
+```
 
 Para executar o script, certifique-se de ativar um ambiente virtual Python (caso esteja utilizando um) e rode o seguinte comando no terminal:
 
