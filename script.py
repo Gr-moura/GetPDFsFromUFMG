@@ -5,15 +5,15 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import os, shutil, time
+import os, re, shutil, time
 
 # Obter credenciais das variáveis de ambiente
 USERNAME = os.environ.get("UFMG_USERNAME")
 PASSWORD = os.environ.get("UFMG_PASSWORD")
-ARQUIVOS_DIR = os.path.expanduser("~/Downloads/UFMG_20241")
-PERIODO = "20241"
+PERIODO = "20251"
+ARQUIVOS_DIR = os.path.expanduser("~/Downloads/UFMG_" + PERIODO)
 WAITING_PAGE = 5
-WAITING_DOWNLOAD = 2
+WAITING_DOWNLOAD = 3
 
 visitedLinks = set()
 breadcrumbsDict = dict()
@@ -33,6 +33,9 @@ def AbrirNavegador(pathToDownload=ARQUIVOS_DIR):
     options = Options()
 
     # This line sets a Firefox preference so that downloads are saved to a custom directory.
+    # 0: Downloads go to the Desktop.
+    # 1: Downloads go to the system's default "Downloads" folder.
+    # 2: Downloads go to a custom directory, which you specify using the "browser.download.dir" preference.
     options.set_preference("browser.download.folderList", 2)
 
     # Configurar o diretório de downloads
@@ -41,7 +44,10 @@ def AbrirNavegador(pathToDownload=ARQUIVOS_DIR):
     # Configurar o download automático de PDFs e notebooks
     options.set_preference(
         "browser.helperApps.neverAsk.saveToDisk",
-        "application/pdf,application/x-ipynb+json",
+        """application/pdf,
+		application/x-ipynb+json,
+		application/vnd.ms-powerpoint,
+		application/vnd.openxmlformats-officedocument.presentationml.presentation""",
     )
 
     options.enable_downloads = True
@@ -145,6 +151,8 @@ def isValid(link, urlAtual):
             or ("https://virtual.ufmg.br/" + PERIODO + "/mod/folder/view") in link
             or ("https://virtual.ufmg.br/" + PERIODO + "/mod/resource/view") in link
             or ("https://virtual.ufmg.br/" + PERIODO + "/pluginfile.php") in link
+            or ("https://virtual.ufmg.br/" + PERIODO + "/mod/url/view") in link
+            or ("https://docs.google.com/presentation/d/") in link
         )
         and link not in visitedLinks
         and (urlAtual + "#") not in link
@@ -186,6 +194,38 @@ def ExistemArquivosNovos(qtArquivosAntes, urlAtual):
     return True
 
 
+def convertToPdfLink(url):
+    """
+    Converte a URL de edição do Google Slides para a URL de exportação em PDF.
+    Exemplo:
+      Entrada: https://docs.google.com/presentation/d/ID_DO_DOCUMENTO/edit?usp=sharing
+      Saída:   https://docs.google.com/presentation/d/ID_DO_DOCUMENTO/export/pdf
+    """
+    match = re.search(r"/presentation/d/([^/]+)/", url)
+    if match:
+        doc_id = match.group(1)
+        pdf_url = f"https://docs.google.com/presentation/d/{doc_id}/export/pdf"
+        return pdf_url
+    else:
+        raise ValueError("Formato de URL inválido.")
+
+
+def aguardarArquivosTemporarios():
+    """
+    Aguarda até que não haja mais arquivos temporários na pasta de downloads.
+    """
+    tempoInicio = time.time()
+    while (
+        any(f.endswith(".part") for f in os.listdir(ARQUIVOS_DIR))
+    ) and time.time() - tempoInicio < WAITING_DOWNLOAD:
+        continue
+
+    if any(f.endswith(".part") for f in os.listdir(ARQUIVOS_DIR)):
+        raise TimeoutError(
+            "Tempo limite excedido ao aguardar o download dos arquivos, aumente WAITING_DOWNLOAD."
+        )
+
+
 def PegarLinksRecursivamente(browser, urlAtual, urlPai, depth):
     if urlAtual in visitedLinks:
         return
@@ -199,8 +239,19 @@ def PegarLinksRecursivamente(browser, urlAtual, urlPai, depth):
 
     except Exception as e:
         if ExistemArquivosNovos(qtArquivosAntes, urlAtual):
-            GuardarArquivosCriados(urlPai)
-            return
+            try:
+                aguardarArquivosTemporarios()
+                GuardarArquivosCriados(urlPai)
+                return
+
+            except Exception as e:
+                print(
+                    "\033[91m"
+                    + f"Erro ao aguardar o download dos arquivos: {e}"
+                    + "\033[0m"
+                )
+                failedLinks.add(urlAtual)
+                return
         else:
             print("\033[91m" + f"Erro ao carregar a página {urlAtual}: {e}" + "\033[0m")
             failedLinks.add(urlAtual)
@@ -209,10 +260,17 @@ def PegarLinksRecursivamente(browser, urlAtual, urlPai, depth):
     links = PegarLinksPagina(browser, urlAtual)
     breadcrumbsDict[urlAtual] = ExtrairBreadcrumbs(browser)
 
+    if len(os.listdir(ARQUIVOS_DIR)) != qtArquivosAntes:
+        # Mover para diretorio com arquivos errados
+        pass
+
     # Iterar recursivamente pelos links encontrados
     linksOrdenados = list(links)
     linksOrdenados.sort()
     for link in linksOrdenados:
+        if link.startswith("https://docs.google.com/presentation/d/"):
+            link = convertToPdfLink(link)
+
         PegarLinksRecursivamente(browser, link, urlAtual, depth + 1)
 
 
