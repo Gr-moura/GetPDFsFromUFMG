@@ -49,51 +49,10 @@ pip install selenium webdriver-manager
 - `ARQUIVOS_DIR`: Diretório onde os arquivos baixados serão armazenados (padrão: `~/Downloads/UFMG_20241`)
 - `PERIODO`: Período acadêmico (padrão: `20241`)
 - `WAITING_PAGE`: Tempo de espera máximo para carregamento de página (padrão: 5s)
-- `WAITING_DOWNLOAD`: Tempo de espera para garantir que o download foi concluído (padrão: 2s)
-
-## Funções Principais
-
-### `AbrirNavegador(pathToDownload)`
-
-Configura e inicia o navegador Firefox com as preferências de download, garantindo que os arquivos sejam baixados automaticamente para o diretório especificado. Define preferências para download automático de PDFs e notebooks.
-
-### `AcessarPagina(browser, url)`
-
-Acessa a URL especificada e executa o login no ambiente virtual da UFMG utilizando as credenciais fornecidas nas variáveis de ambiente.
-
-### `CriarPastas(caminhoBase, nomesPastas)`
-
-Cria uma estrutura de pastas baseada nos breadcrumbs extraídos da página, organizando os arquivos de forma estruturada.
-
-### `ExtrairBreadcrumbs(browser)`
-
-Obtém a estrutura de navegação da página atual para organizar os arquivos baixados de forma hierárquica.
-
-### `GuardarArquivosCriados(urlPai, dirInicial)`
-
-Move os arquivos baixados para as pastas correspondentes baseando-se na estrutura de navegação extraída.
-
-### `isValid(link, urlAtual)`
-
-Verifica se um link encontrado na página é válido para ser processado pelo script.
-
-### `PegarLinksPagina(browser, urlAtual)`
-
-Coleta todos os links válidos de uma página para navegação e download de arquivos.
-
-### `ExistemArquivosNovos(qtArquivosAntes, urlAtual)`
-
-Verifica se novos arquivos foram baixados comparando a quantidade de arquivos antes e depois de acessar uma página.
-
-### `PegarLinksRecursivamente(browser, urlAtual, urlPai, depth)`
-
-Executa a navegação recursiva pelos links da página, baixando arquivos e explorando outras seções do ambiente virtual.
-
-### `main()`
-
-Função principal que inicia o navegador, acessa a página principal e inicia a extração recursiva dos arquivos. Exibe também a lista de links que falharam ao serem acessados.
+- `WAITING_DOWNLOAD`: Tempo de espera para garantir que o download foi concluído (padrão: 5s)
 
 ## Execução
+
 Modifique a variável global PERIODO para o periodo em que queira baixar os arquivos:
 
 ```py
@@ -107,6 +66,81 @@ python script.py
 ```
 
 Certifique-se de que o navegador Firefox está instalado e atualizado.
+
+Caso queira evitar que o monitor desligue automaticamente enquanto um programa está rodando, existem algumas opções dependendo do sistema operacional.
+
+### macOS
+
+No **macOS**, você pode usar o comando `caffeinate` (já disponível no sistema) para evitar que o computador entre em repouso enquanto o script roda.  
+
+```sh
+caffeinate python script.py
+```
+
+Esse comando manterá o computador **acordado** até que o script termine.
+
+---
+
+### Linux
+
+No **Linux**, há algumas alternativas para impedir o desligamento da tela e a suspensão do sistema.
+
+#### 1. Usando o comando `caffeinate` (se disponível)  
+
+Algumas distribuições (ou instalações via `snap`/`apt`) oferecem o comando `caffeinate`. Se estiver instalado, você pode usá-lo da mesma forma que no macOS:  
+
+```sh
+caffeinate python script.py
+```
+
+#### 2. Usando o comando `xset`  
+
+Se `caffeinate` **não estiver disponível**, você pode **desativar temporariamente o protetor de tela e o gerenciamento de energia (DPMS)** com o `xset`:  
+
+```sh
+# Desativa o screensaver e o DPMS
+xset s off -dpms
+python script.py
+# Restaura as configurações (opcional)
+xset s on +dpms
+```
+
+#### 3. Utilizando o aplicativo **Caffeine**  
+
+Existe também o aplicativo **Caffeine** para Linux, que impede que o sistema entre em repouso enquanto estiver ativado. Consulte a documentação da sua distribuição para instalar e usar esse utilitário.
+
+---
+
+### Windows  
+
+No **Windows**, as opções não são nativas via linha de comando, mas há algumas alternativas viáveis.
+
+#### 1. Utilitário **Caffeine**  
+
+O aplicativo **Caffeine** simula uma tecla pressionada a cada 59 segundos, evitando que o computador durma.  
+Você pode baixá-lo e executá-lo enquanto roda o script.  
+
+[Baixar Caffeine](https://www.zhornsoftware.co.uk/caffeine/)
+
+#### 2. Alteração temporária das configurações de energia  
+
+Você também pode, via **Prompt de Comando**, desativar o desligamento automático do monitor com o comando `powercfg`.  
+
+#### Para impedir que o monitor desligue:
+
+```cmd
+powercfg /change monitor-timeout-ac 0
+python script.py
+```
+
+**Importante**: Essa alteração afeta as configurações do sistema.  
+Para restaurar as configurações originais (por exemplo, definir um tempo de 10 minutos), use:  
+
+```cmd
+powercfg /change monitor-timeout-ac 10
+```
+
+---
 
 ## Possíveis Erros e Soluções
 
@@ -124,5 +158,5 @@ Verifique se as variáveis de ambiente `UFMG_USERNAME` e `UFMG_PASSWORD` estão 
 
 ### Tempo de espera excedido
 
-Se o site estiver carregando lentamente, tente aumentar `WAITING_PAGE` para um valor maior.
+Se o site estiver carregando lentamente, tente aumentar `WAITING_PAGE` e `WAITING_DOWNLOAD` para um valor maior.
 
