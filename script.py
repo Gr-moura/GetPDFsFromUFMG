@@ -13,7 +13,7 @@ PASSWORD = os.environ.get("UFMG_PASSWORD")
 PERIODO = "20251"
 ARQUIVOS_DIR = os.path.expanduser("~/Downloads/UFMG_" + PERIODO)
 WAITING_PAGE = 5
-WAITING_DOWNLOAD = 3
+WAITING_DOWNLOAD = 5
 
 visitedLinks = set()
 breadcrumbsDict = dict()
